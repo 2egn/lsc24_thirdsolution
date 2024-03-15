@@ -9,6 +9,9 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
+
+import core.SQLExecutor;
+
 import java.awt.Color;
 import java.awt.Component;
 
@@ -17,6 +20,7 @@ import javax.swing.JOptionPane;
 
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.Insets;
 
@@ -24,10 +28,19 @@ import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
 import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
+import model.Auction;
+import model.Building;
+import javax.swing.JSplitPane;
 
 public class MainForm extends JFrame {
-
+	SQLExecutor executor = new SQLExecutor();
 	/**
 	 * Launch the application.
 	 */
@@ -88,7 +101,7 @@ public class MainForm extends JFrame {
 		SearchBtn.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
-				//TODO 검색 폼 이동
+				new Search().setVisible(true);
 			}
 		});
 		SearchBtn.setBounds(413, 10, 52, 52);
@@ -117,12 +130,15 @@ public class MainForm extends JFrame {
 		AlarmpageBtn.setBounds(533, 10, 52, 52);
 		panel.add(AlarmpageBtn);
 		
+		
+		
 		JPanel panel_1 = new JPanel();
 		panel_1.setBounds(10, 98, 304, 426);
 		getContentPane().add(panel_1);
 		panel_1.setLayout(null);
 		
 		JLabel ViewMapBtn = new JLabel("지도보기");
+		ViewMapBtn.setFont(new Font("굴림", Font.PLAIN, 12));
 		ViewMapBtn.setBackground(Color.WHITE);
 		ViewMapBtn.setHorizontalAlignment(SwingConstants.CENTER);
 		ViewMapBtn.setBounds(104, 10, 85, 27);
@@ -137,25 +153,91 @@ public class MainForm extends JFrame {
 		panel_1.add(MapImage);
 		
 		JPanel PopularAuctionPanel = new JPanel();
-		PopularAuctionPanel.setBounds(327, 98, 246, 215);
+		PopularAuctionPanel.setBounds(326, 98, 246, 215);
 		PopularAuctionPanel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 		getContentPane().add(PopularAuctionPanel);
 		PopularAuctionPanel.setLayout(null);
+		JSplitPane popularsplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		JLabel populartext = new JLabel("인기경매");
+		popularsplit.setTopComponent(populartext);
 		
-		JLabel lblNewLabel_2 = new JLabel("\uC778\uAE30\uACBD\uB9E4");
-		lblNewLabel_2.setBounds(12, 10, 57, 15);
-		PopularAuctionPanel.add(lblNewLabel_2);
 		
 		JLabel lblNewLabel = new JLabel("\uCD5C\uADFC \uB9E4\uAC01 \uB0B4\uC5ED");
 		lblNewLabel.setBounds(326, 323, 124, 15);
 		getContentPane().add(lblNewLabel);
 		
-		JScrollPane scrollPane = new JScrollPane();
-		scrollPane.setBounds(326, 348, 247, 176);
-		getContentPane().add(scrollPane);
+		//옥션 리스트 생성 및 값 삽입
+		List<Auction> auctionlist = new ArrayList<>();//java.util.*
+		try {
+			executor.Connect();
+			ResultSet rs = executor.executeReadQuery("SELECT * FROM auction.auction ORDER BY STR_TO_DATE(a_date,'%Y-%m-%d') DESC, b_no ASC");
+			while(rs.next()) {
+				auctionlist.add(new Auction(rs.getString("a_no"),rs.getString("b_no"),rs.getString("u_no"),rs.getString("a_date")));
+			}
+			executor.close();
+		}
+		catch(Exception ex) {
+			ex.printStackTrace();
+		}
+		//건물 리스트 생성 및 값 삽입
+		List<Building> a_buildinglist = new ArrayList<>();
+		try {
+			for (Auction auc : auctionlist) {
+				executor.Connect();
+				ResultSet rs = executor.executeReadQuery("SELECT * FROM auction.building WHERE b_no='"+auc.returnAucNum()+"'");
+				while(rs.next()) {
+					a_buildinglist.add(new Building(rs.getString("b_no"),rs.getString("b_name"),rs.getString("b_price"),rs.getString("b_date"),rs.getString("b_type"),rs.getString("b_x"),rs.getString("b_y"),rs.getString("ar_no"),rs.getString("b_count")));
+				}
+			}
+			executor.close();
+		}catch(Exception ex) {
+			ex.printStackTrace();
+		}
 		
+		//스크롤페인(최근경매)
+		JScrollPane AuctionscrollPane = new JScrollPane();
+		AuctionscrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+		AuctionscrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+		AuctionscrollPane.setBounds(326, 348, 247, 176);
+		getContentPane().add(AuctionscrollPane);
+		//플로우레이아웃(최근경매)
+		String filepath = "C:\\thirdproblem\\datafiles\\building\\";
 		JPanel zoneA = new JPanel();
-		zoneA.setLayout(new FlowLayout());
+		GridLayout gl_zoneA = new GridLayout(5,2);
+		gl_zoneA.setHgap(5);
+		gl_zoneA.setVgap(5);
+		zoneA.setLayout(gl_zoneA);
+		zoneA.setSize(247,176);
+		AuctionscrollPane.add(zoneA);
+		AuctionscrollPane.setViewportView(zoneA);
+		
+		
+		
+		
+		//flowlayout에 이미지들 삽입
+		for(Building bui : a_buildinglist) {
+			JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+			//이미지
+			JPanel UpPanel = new JPanel();
+			String path = filepath+bui.getBuilidngName()+"1.jpg";
+			ImageIcon icon = new ImageIcon(path);
+			JLabel imagelabel = new JLabel(imagesizeset(icon, 120, 80));		
+			UpPanel.add(imagelabel);
+			//가격,위치
+			JPanel DownPanel = new JPanel(new GridLayout(2,1));
+			JLabel PriceLabel = new JLabel(bui.getBuildingPrice());
+			PriceLabel.setFont(new Font("돋움", Font.BOLD,15));
+			JLabel AreaLabel = new JLabel(bui.getAreaName());
+			DownPanel.add(PriceLabel);
+			DownPanel.add(AreaLabel);
+			splitPane.setTopComponent(UpPanel);
+			splitPane.setBottomComponent(DownPanel);
+			splitPane.setDividerSize(0);
+			splitPane.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+			splitPane.setSize(95,100);
+			zoneA.add(splitPane);
+		}
+		
 	}
 	private ImageIcon imagesizeset(ImageIcon icon, int i, int j) {
 		Image img = icon.getImage();

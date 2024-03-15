@@ -94,10 +94,11 @@ public class Login extends JFrame{
 						executor.Connect();
 						String query = "SELECT * FROM auction.user WHERE u_id = '"+idstring+"' AND u_pw = '"+pwstring+"'";
 						ResultSet resultset = executor.executeReadQuery(query);
-						executor.close();
+						
 						//</계정존재확인 sql>
 						if(!resultset.next()){//B. 미존재 회원
 							JOptionPane.showMessageDialog(null, "존재하는 회원이 없습니다.","경고",JOptionPane.ERROR_MESSAGE);
+							executor.close();
 						}
 						else {//C,D
 							executor.Connect();
